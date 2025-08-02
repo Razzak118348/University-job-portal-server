@@ -27,6 +27,7 @@ async function run() {
 
     const AllUsers = client.db("JobPortal").collection("Users");
     const AllServices = client.db("JobPortal").collection("JobPortalDB");
+    const AllJobApplication = client.db("JobPortal").collection("JobApplication");
 
     //job post
     app.post('/jobs', async (req, res) => {
@@ -40,6 +41,7 @@ async function run() {
       }
     });
 
+    //all jobs fetch
     app.get('/allJobs', async (req, res) => {
       try {
         const jobs = await AllServices.find({}).toArray();
@@ -50,6 +52,7 @@ async function run() {
         }
     });
 
+    // GET: Fetch paginated jobs
     app.get('/jobs', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1; // default to page 1
@@ -74,8 +77,124 @@ async function run() {
   }
 });
 
+//get posted jobs by email
+app.get('/jobs/:email', async (req, res) => {
+  const email = req.params.email;
+  console.log('Received request for email:', email);
 
-    // POST: Add a new user profile
+  try {
+    const jobs = await AllServices.find({ email }).toArray();
+    console.log('Jobs found:', jobs.length);
+
+    if (jobs.length === 0) {
+      return res.status(404).send({ message: 'No jobs found for this email' });
+    }
+
+    res.send(jobs);
+  } catch (error) {
+    console.error('Error fetching jobs by email:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+// GET: Fetch job by ID
+app.get('/jobs/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const job = await AllServices.findOne({ _id: new ObjectId(id) });
+    if (!job) {
+      return res.status(404).send({ message: 'Job not found' });
+    }
+    res.send(job);
+    console.log('Job fetched:', job);
+  } catch (error) {
+    console.error('Error fetching job by ID:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+// DELETE: Delete posted job by ID
+app.delete('/jobs/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const result = await AllServices.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ message: 'Job not found' });
+    }
+    res.send({ message: 'Job deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting job:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+
+
+//apply for job with user email
+  app.post('/jobApplications/:email', async (req, res) => {
+  const email = req.params.email;
+  const applicationData = req.body;
+
+  if (!email) {
+    return res.status(400).send({ error: 'Email parameter is required' });
+  }
+
+  try {
+    applicationData.email = email;
+
+    const result = await AllJobApplication.insertOne(applicationData);
+    res.status(201).send({
+      message: 'Application submitted successfully',
+      insertedId: result.insertedId,
+    });
+  } catch (error) {
+    console.error('Error applying for job:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+//Get my applid jobs as Mybid by email
+app.get('/jobApplications/:email', async (req, res) => {
+  const email = req.params.email;
+  try {
+    const applications = await AllJobApplication
+      .find({ email })
+      .toArray();
+    if (applications.length === 0) {
+      return res.status(404).send({ message: 'No applications found for this email'
+      });
+    }
+    res.send(applications);
+  } catch (error) {
+    console.error('Error fetching applications by email:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+// GET: Fetch applicants by jobId
+app.get('/jobApplications/job/:jobId', async (req, res) => {
+  const jobId = req.params.jobId;
+
+  if (!jobId) {
+    return res.status(400).send({ error: 'Job ID is required' });
+  }
+
+  try {
+    const applications = await AllJobApplication.find({ jobId }).toArray();
+
+    if (applications.length === 0) {
+      return res.status(404).send({ message: 'No applications found for this job' });
+    }
+
+    res.send(applications);
+  } catch (error) {
+    console.error('Error fetching applications by jobId:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+
+// POST: Add a new user profile
     app.post('/profile', async (req, res) => {
       try {
         const user = req.body;
@@ -120,8 +239,8 @@ async function run() {
       }
 
       try {
-        console.log('Updating user:', email);
-        console.log('With data:', updatedData);
+        // console.log('Updating user:', email);
+        // console.log('With data:', updatedData);
 
         const result = await AllUsers.updateOne(
           { email },
@@ -135,6 +254,8 @@ async function run() {
         res.status(500).send({ error: 'Internal Server Error' });
       }
     });
+
+
 
     console.log("Connected to MongoDB!");
   } catch (err) {
