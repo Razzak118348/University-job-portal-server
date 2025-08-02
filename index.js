@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion } = require('mongodb');
-
+const { ObjectId } = require('mongodb'); 
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -52,6 +52,24 @@ async function run() {
         }
     });
 
+    app.get('/allJobs/:id', async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const job = await AllServices.findOne({ _id: new ObjectId(id) });
+
+    if (!job) {
+      return res.status(404).send({ message: 'Job not found' });
+    }
+
+    res.send(job);
+  } catch (error) {
+    console.error('Error fetching job by ID:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+
     // GET: Fetch paginated jobs
     app.get('/jobs', async (req, res) => {
   try {
@@ -97,21 +115,7 @@ app.get('/jobs/:email', async (req, res) => {
   }
 });
 
-// GET: Fetch job by ID
-app.get('/jobs/:id', async (req, res) => {
-  const id = req.params.id;
-  try {
-    const job = await AllServices.findOne({ _id: new ObjectId(id) });
-    if (!job) {
-      return res.status(404).send({ message: 'Job not found' });
-    }
-    res.send(job);
-    console.log('Job fetched:', job);
-  } catch (error) {
-    console.error('Error fetching job by ID:', error);
-    res.status(500).send({ error: 'Internal Server Error' });
-  }
-});
+
 
 // DELETE: Delete posted job by ID
 app.delete('/jobs/:id', async (req, res) => {
